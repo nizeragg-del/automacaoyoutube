@@ -1,0 +1,15 @@
+node_modules
+dist
+.DS_Store
+.env
+**/.env
+**/*.json
+!package.json
+!tsconfig.json
+!remotion.config.ts
+**/*.mp4
+**/*.jpg
+**/*.png
+**/*.pyc
+**/__pycache__
+out

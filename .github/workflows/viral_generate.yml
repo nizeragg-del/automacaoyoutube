@@ -1,0 +1,75 @@
+name: Viral Engine Generation
+
+on:
+  workflow_dispatch:
+    inputs:
+      idea:
+        description: 'Tema do vídeo'
+        required: true
+      gemini_key:
+        description: 'Gemini API Key'
+        required: true
+      hf_key:
+        description: 'Hugging Face Token'
+        required: true
+      elevenlabs_key:
+        description: 'ElevenLabs API Key'
+        required: true
+      voice_id:
+        description: 'ID da Voz'
+        required: false
+        default: 'pqHfZKP75CvOlQylNhV4'
+      yt_client_id:
+        description: 'YouTube Client ID'
+        required: true
+      yt_client_secret:
+        description: 'YouTube Client Secret'
+        required: true
+      yt_refresh_token:
+        description: 'YouTube Refresh Token'
+        required: true
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (Remotion)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install System Dependencies for Remotion
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install Remotion Dependencies
+        run: |
+          cd remotion-app
+          npm install
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Python Dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+
+      - name: Run Video Generation
+        run: |
+          cd backend
+          python full_automation.py \
+            --idea "${{ github.event.inputs.idea }}" \
+            --gemini_key "${{ github.event.inputs.gemini_key }}" \
+            --hf_key "${{ github.event.inputs.hf_key }}" \
+            --elevenlabs_key "${{ github.event.inputs.elevenlabs_key }}" \
+            --voice_id "${{ github.event.inputs.voice_id }}" \
+            --yt_client_id "${{ github.event.inputs.yt_client_id }}" \
+            --yt_client_secret "${{ github.event.inputs.yt_client_secret }}" \
+            --yt_refresh_token "${{ github.event.inputs.yt_refresh_token }}"
