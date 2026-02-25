@@ -13,8 +13,8 @@ def run_story_automation(idea, gemini_key=None, hf_key=None, elevenlabs_key=None
     engine = AIEngine(gemini_key=gemini_key, hf_key=hf_key)
     youtube = YouTubeService()
     
-    # Caminhos do Remotion
-    remotion_dir = os.path.join(os.getcwd(), "..", "remotion-app")
+    # Caminhos do Remotion (Agora na raiz do repo)
+    remotion_dir = os.getcwd()
     public_dir = os.path.join(remotion_dir, "public")
     
     # 0. Autenticação Antecipada
