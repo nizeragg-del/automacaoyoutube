@@ -81,19 +81,20 @@ def run_story_automation(idea, gemini_key=None, hf_key=None, elevenlabs_key=None
     # Executar Renderização do Remotion
     output_video = os.path.join(os.getcwd(), "final_story.mp4")
     
-    render_cmd = [
-        "npx", "remotion", "render", 
-        "src/index.ts", "StoryVideo", output_video,
-        f"--props=public/story_props.json",
-        f"--duration={duration_frames}"
-    ]
+    render_cmd = f'npx remotion render src/index.ts StoryVideo "{output_video}" --props=public/story_props.json --duration={duration_frames}'
     
     print(f"Iniciando renderização no diretório: {remotion_dir}")
     try:
+        # No Linux, shell=True funciona melhor com uma string única
         subprocess.run(render_cmd, cwd=remotion_dir, check=True, shell=True)
-        print(f"Vídeo renderizado com sucesso: {output_video}")
-    except subprocess.CalledProcessError as e:
-        print(f"Erro na renderização do Remotion: {e}")
+        
+        # Validação crucial: o arquivo realmente existe?
+        if not os.path.exists(output_video):
+            raise FileNotFoundError(f"Remotion terminou sem gerar o arquivo em: {output_video}")
+            
+        print(f"Vídeo renderizado e verificado com sucesso: {output_video}")
+    except Exception as e:
+        print(f"Erro na renderização ou verificação do Remotion: {e}")
         return
 
     # 5. Fazer o Upload para o YouTube
