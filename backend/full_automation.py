@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def run_story_automation(idea, gemini_key=None, hf_key=None, elevenlabs_key=None, voice_id=None, yt_client_id=None, yt_client_secret=None, yt_refresh_token=None):
+def run_story_automation(idea, gemini_key=None, hf_key=None, elevenlabs_key=None, voice_id=None, yt_client_id=None, yt_client_secret=None, yt_refresh_token=None, video_id=None, supabase_url=None, supabase_key=None):
     # Inicializa serviços com chaves dinâmicas (Suporte SaaS)
     engine = AIEngine(gemini_key=gemini_key, hf_key=hf_key)
     youtube = YouTubeService()
@@ -104,15 +104,40 @@ def run_story_automation(idea, gemini_key=None, hf_key=None, elevenlabs_key=None
     description = story.get('description', f"{title}\n\n#História #Curiosidades #Shorts")
     
     try:
-        video_id = youtube.upload_video(
+        yt_video_id = youtube.upload_video(
             file_path=output_video,
             title=title,
             description=description,
             tags=["História", "Especial", "Shorts", "Incrivel"]
         )
         print(f"\n✅ SUCESSO TOTAL!")
-        print(f"Vídeo postado com ID: {video_id}")
-        print(f"Link: https://www.youtube.com/watch?v={video_id}")
+        print(f"Vídeo postado com ID: {yt_video_id}")
+        print(f"Link: https://www.youtube.com/watch?v={yt_video_id}")
+
+        # Sincronizar com Supabase se as chaves estiverem presentes
+        if video_id and supabase_url and supabase_key:
+            import requests
+            print(f"\n--- [6] Sincronizando com Supabase (Video ID: {video_id}) ---")
+            url = f"{supabase_url}/rest/v1/videos?id=eq.{video_id}"
+            headers = {
+                "apikey": supabase_key,
+                "Authorization": f"Bearer {supabase_key}",
+                "Content-Type": "application/json",
+                "Prefer": "return=minimal"
+            }
+            data = {
+                "status": "completed",
+                "youtube_id": yt_video_id
+            }
+            try:
+                resp = requests.patch(url, headers=headers, json=data)
+                if resp.status_code in [200, 204]:
+                    print("✅ Status atualizado no banco de dados!")
+                else:
+                    print(f"⚠️ Falha ao atualizar status: {resp.status_code} - {resp.text}")
+            except Exception as e:
+                print(f"❌ Erro na sincronização: {e}")
+
     except Exception as e:
         print(f"Erro no upload do YouTube: {e}")
 
@@ -127,6 +152,9 @@ if __name__ == "__main__":
     parser.add_argument("--yt_client_id", help="YouTube Client ID")
     parser.add_argument("--yt_client_secret", help="YouTube Client Secret")
     parser.add_argument("--yt_refresh_token", help="YouTube Refresh Token")
+    parser.add_argument("--video_id", help="ID do Vídeo no Supabase")
+    parser.add_argument("--supabase_url", help="Supabase URL")
+    parser.add_argument("--supabase_key", help="Supabase Anon/Service Key")
 
     args = parser.parse_args()
 
@@ -142,5 +170,8 @@ if __name__ == "__main__":
             voice_id=args.voice_id,
             yt_client_id=args.yt_client_id,
             yt_client_secret=args.yt_client_secret,
-            yt_refresh_token=args.yt_refresh_token
+            yt_refresh_token=args.yt_refresh_token,
+            video_id=args.video_id,
+            supabase_url=args.supabase_url,
+            supabase_key=args.supabase_key
         )

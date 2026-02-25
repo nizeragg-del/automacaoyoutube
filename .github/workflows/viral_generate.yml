@@ -28,6 +28,15 @@ on:
       yt_refresh_token:
         description: 'YouTube Refresh Token'
         required: true
+      video_id:
+        description: 'Video ID no Supabase'
+        required: false
+      supabase_url:
+        description: 'Supabase URL'
+        required: false
+      supabase_key:
+        description: 'Supabase Anon Key'
+        required: false
 
 jobs:
   generate:
@@ -70,4 +79,7 @@ jobs:
             --voice_id "${{ github.event.inputs.voice_id }}" \
             --yt_client_id "${{ github.event.inputs.yt_client_id }}" \
             --yt_client_secret "${{ github.event.inputs.yt_client_secret }}" \
-            --yt_refresh_token "${{ github.event.inputs.yt_refresh_token }}"
+            --yt_refresh_token "${{ github.event.inputs.yt_refresh_token }}" \
+            --video_id "${{ github.event.inputs.video_id }}" \
+            --supabase_url "${{ github.event.inputs.supabase_url }}" \
+            --supabase_key "${{ github.event.inputs.supabase_key }}"
