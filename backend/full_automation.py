@@ -118,19 +118,18 @@ def run_story_automation(idea, gemini_key=None, hf_key=None, elevenlabs_key=None
         if video_id and supabase_url and supabase_key:
             import requests
             print(f"\n--- [6] Sincronizando com Supabase (Video ID: {video_id}) ---")
-            url = f"{supabase_url}/rest/v1/videos?id=eq.{video_id}"
+            url = f"{supabase_url}/rest/v1/rpc/update_video_status"
             headers = {
                 "apikey": supabase_key,
                 "Authorization": f"Bearer {supabase_key}",
-                "Content-Type": "application/json",
-                "Prefer": "return=minimal"
+                "Content-Type": "application/json"
             }
             data = {
-                "status": "completed",
-                "youtube_id": yt_video_id
+                "video_uuid": video_id,
+                "yt_id": yt_video_id
             }
             try:
-                resp = requests.patch(url, headers=headers, json=data)
+                resp = requests.post(url, headers=headers, json=data)
                 if resp.status_code in [200, 204]:
                     print("✅ Status atualizado no banco de dados!")
                 else:
