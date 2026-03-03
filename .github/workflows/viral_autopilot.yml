@@ -1,0 +1,53 @@
+name: Viral Autopilot Service (Daily)
+
+on:
+  schedule:
+    # Roda todos os dias às 18:00 UTC (15:00 Horário de Brasília)
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+    # Permite rodar manualmente pelo painel do GitHub para testes
+    inputs:
+      force_run:
+        description: 'Forçar Execução'
+        required: false
+        default: 'true'
+
+jobs:
+  run-supervisor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (Remotion dependency)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar Dependências NPM
+        run: npm install
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install supabase
+
+      - name: Iniciar Autopilot (Cérebro Supervisor)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          # Chaves de fallback caso o usuário não tenha no DB e dependa das do Admin
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          HUGGINGFACE_API_KEY: ${{ secrets.HUGGINGFACE_API_KEY }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        run: |
+          python backend/autopilot.py
