@@ -2,8 +2,8 @@ name: Viral Autopilot Service (Daily)
 
 on:
   schedule:
-    # Roda todos os dias às 18:00 UTC (15:00 Horário de Brasília)
-    - cron: '0 18 * * *'
+    # Roda todos os dias às 23:00 UTC (20:00 Horário de Brasília)
+    - cron: '0 23 * * *'
   workflow_dispatch:
     # Permite rodar manualmente pelo painel do GitHub para testes
     inputs:
