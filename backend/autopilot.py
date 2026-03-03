@@ -37,8 +37,22 @@ def main():
         
         routines_today = []
         for routine in active_routines:
-            # array elements
-            days = routine.get('days_of_week', [])
+            raw_days = routine.get('days_of_week', [])
+            days = []
+            
+            # Garante que temos uma lista de inteiros. O Postgres via API pode mandar strings "[2]" ou inteiros literais.
+            if isinstance(raw_days, str):
+                import json
+                try:
+                    days = json.loads(raw_days)
+                except:
+                    pass
+            elif isinstance(raw_days, list):
+                # Converte tudo para INT para ter certeza 
+                days = [int(d) for d in raw_days if str(d).isdigit()]
+                
+            print(f"[{routine.get('theme')}] Dias da rotina: {days} | Hoje: {current_day}")
+            
             if current_day in days:
                 routines_today.append(routine)
                 
