@@ -61,7 +61,13 @@ class AIEngine:
           "title": "Viral Catchy Title In PT-BR",
           "full_script": "The elite script in PT-BR (MAX 1000 chars)",
           "description": "SEO Description in PT-BR with #Shorts #History etc.",
-          "image_prompt": "Epic cinematic visual prompt in English"
+          "image_prompts": [
+             "Scene 1 epic cinematic visual prompt in English",
+             "Scene 2 epic cinematic visual prompt in English",
+             "Scene 3 epic cinematic visual prompt in English",
+             "Scene 4 epic cinematic visual prompt in English",
+             "Scene 5 epic cinematic visual prompt in English"
+          ]
         }
         """
         

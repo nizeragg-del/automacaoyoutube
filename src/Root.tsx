@@ -1,5 +1,5 @@
 import "./index.css";
-import { Composition } from "remotion";
+import { Composition, staticFile } from "remotion";
 import { StoryComposition } from "./StoryComposition";
 
 export const RemotionRoot: React.FC = () => {
@@ -13,9 +13,9 @@ export const RemotionRoot: React.FC = () => {
         width={1080}
         height={1920}
         defaultProps={{
-          image: "https://picsum.photos/1080/1920",
-          text: "Título da História",
-          audio: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+          images: [staticFile("placeholder.jpg")], // Array de fallback
+          text: "Qualquer história impactante cabe aqui. Teste do sistema.",
+          audio: staticFile("placeholder_audio.mp3")
         }}
       />
     </>

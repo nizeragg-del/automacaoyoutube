@@ -48,14 +48,34 @@ def run_story_automation(idea, gemini_key=None, hf_key=None, elevenlabs_key=None
         voice_id=voice_id
     )
 
-    # 3. Gerar Imagem Única
-    print("\n--- [3] Gerando Imagem Principal ---")
-    image_bytes = engine.generate_image(story['image_prompt'])
-    image_filename = "main_story_image.jpg"
-    image_path = os.path.join(public_dir, image_filename)
+    # 3. Gerar Múltiplas Imagens Cinemáticas (Hugging Face)
+    print("\n--- [3] Gerando Múltiplas Imagens Cinemáticas ---")
+    image_filenames = []
     
-    with open(image_path, "wb") as f:
-        f.write(image_bytes)
+    # Tratamento caso venha string (legado) ou list (novo)
+    prompts = story.get('image_prompts', [story.get('image_prompt', 'Cinematic view')])
+    if isinstance(prompts, str):
+        prompts = [prompts]
+        
+    for index, prpt in enumerate(prompts):
+        print(f"Gerando cena {index+1}/{len(prompts)}...")
+        try:
+            image_bytes = engine.generate_image(prpt)
+            image_filename = f"scene_{index}.jpg"
+            image_path = os.path.join(public_dir, image_filename)
+            
+            with open(image_path, "wb") as f:
+                f.write(image_bytes)
+                
+            image_filenames.append(image_filename)
+        except Exception as img_err:
+            print(f"Erro ao gerar imagem {index+1}: {img_err}")
+            # Se falhar uma, tenta continuar com as outras ou salva um placheolder se quiser.
+            pass
+            
+    if not image_filenames:
+        print("❌ CRÍTICO: Nenhuma imagem foi gerada com sucesso. Abortando.")
+        return
 
     # 4. Preparar Dados para o Remotion
     print("\n--- [4] Renderizando Vídeo (Remotion) ---")
@@ -69,7 +89,7 @@ def run_story_automation(idea, gemini_key=None, hf_key=None, elevenlabs_key=None
     print(f"Duração detectada: {audio_duration_secs}s ({duration_frames} frames)")
 
     story_data = {
-        "image": image_filename,
+        "images": image_filenames, # Agora envia array
         "text": story['title'],
         "audio": audio_filename,
         "durationInFrames": duration_frames
