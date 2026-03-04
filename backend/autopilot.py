@@ -39,6 +39,15 @@ def main():
     else:
         print("❌ Chave Supabase NÃO encontrada.")
 
+    yt_id = os.environ.get('YOUTUBE_CLIENT_ID')
+    yt_secret = os.environ.get('YOUTUBE_CLIENT_SECRET')
+    
+    if yt_id: print(f"📺 YouTube Client ID identificado: {yt_id[:8]}...")
+    else: print("⚠️ YouTube Client ID NÃO encontrado nas variáveis de ambiente.")
+    
+    if yt_secret: print(f"📺 YouTube Client Secret identificado: {yt_secret[:5]}...")
+    else: print("⚠️ YouTube Client Secret NÃO encontrado nas variáveis de ambiente.")
+
     try:
         # Busca TODAS as rotinas sem filtro '.eq' para evitar bugs de parsing de Boolean do Postgres no Python
         response = supabase.table('automations').select('*').execute()

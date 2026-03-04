@@ -20,8 +20,12 @@ class YouTubeService:
         if self.service:
             return self.service
 
-        if refresh_token and client_id and client_secret:
-            print("Usando Refresh Token para autenticação...")
+        # Se algum parâmetro for fornecido, tenta usar o fluxo de Refresh Token
+        if refresh_token:
+            if not client_id or not client_secret:
+                raise ValueError("ERRO: Refresh Token detectado, mas YOUTUBE_CLIENT_ID ou SECRET estão ausentes no ambiente.")
+                
+            print(f"Usando Refresh Token para autenticação ({client_id[:5]}...)")
             from google.oauth2.credentials import Credentials
             credentials = Credentials(
                 token=None,
@@ -31,14 +35,19 @@ class YouTubeService:
                 client_secret=client_secret,
                 scopes=self.scopes
             )
-        else:
-            print("Usando fluxo interativo local...")
+            self.service = build(self.api_service_name, self.api_version, credentials=credentials)
+            return self.service
+
+        # Fallback para fluxo interativo (Apenas uso local)
+        if os.path.exists(self.client_secrets_file):
+            print("Usando fluxo interativo local (client_secrets.json)...")
             flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
                 self.client_secrets_file, self.scopes)
             credentials = flow.run_local_server(port=8080, open_browser=False)
-
-        self.service = build(self.api_service_name, self.api_version, credentials=credentials)
-        return self.service
+            self.service = build(self.api_service_name, self.api_version, credentials=credentials)
+            return self.service
+        
+        raise ValueError(f"FALHA DE AUTENTICAÇÃO: Nenhum Refresh Token fornecido e '{self.client_secrets_file}' não encontrado.")
 
     def upload_video(self, file_path: str, title: str, description: str, tags: list = None):
         """
