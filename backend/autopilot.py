@@ -21,14 +21,23 @@ def main():
         
     supabase: Client = create_client(supabase_url, supabase_key)
     
-    # 2. Dia Atual (UTC ou Fuso-Horário do Servidor Local)
-    # A tabela usa 0 para Domingo, 1 para Segunda, etc
-    # datetime.today().weekday() retorna: 0 = Segunda, 6 = Domingo
-    # Vamos normalizar para 0 = Domingo, para bater com o JS no front
-    python_weekday = datetime.datetime.today().weekday()
+    # 2. Dia Atual (Fuso Horário BRASÍLIA - GMT-3)
+    # Garante que o motor veja o mesmo "hoje" que o usuário no Brasil, ignorando o horário UTC do servidor
+    brasil_tz = datetime.timezone(datetime.timedelta(hours=-3))
+    agora_br = datetime.datetime.now(brasil_tz)
+    
+    # datetime.weekday(): 0=Segunda, 6=Domingo. Convertemos para 0=Dom, 6=Sáb
+    python_weekday = agora_br.weekday()
     current_day = (python_weekday + 1) % 7 
     
-    print(f"\n🚀 Iniciando Varredura do Piloto Automático... (Dia Atual: {current_day})")
+    print(f"\n🚀 Iniciando Varredura do Piloto Automático... (Hora Local BR: {agora_br.strftime('%H:%M:%S')})")
+    print(f"📅 Dia da Semana Identificado: {current_day} (0=Dom, 1=Seg, 2=Ter, 3=Qua...)")
+    
+    # Pequeno log de debug (mascarado)
+    if supabase_key:
+        print(f"🔑 Chave Supabase finaliza com: ...{supabase_key[-6:]}")
+    else:
+        print("❌ Chave Supabase NÃO encontrada.")
 
     try:
         # Busca TODAS as rotinas sem filtro '.eq' para evitar bugs de parsing de Boolean do Postgres no Python
