@@ -85,7 +85,7 @@ def main():
             # Para isso o projeto no Supabase deve permitir ler "profiles"
             # Vamos buscar os tokens salvos (Ex: youtube_refresh_token)
             
-            profile_res = supabase.table('users').select('*').eq('id', user_id).execute()
+            profile_res = supabase.table('profiles').select('*').eq('id', user_id).execute()
             if not profile_res.data:
                 print("⚠️ Usuário não encontrado no banco de dados. Pulando...")
                 continue
