@@ -125,10 +125,11 @@ class AIEngine:
         
         print(f"Gerando narração com ElevenLabs (Timestamps incluídos)...")
         api_key = elevenlabs_key or os.getenv("ELEVENLABS_API_KEY")
-        selected_voice = voice_id or "pqHfZKP75CvOlQylNhV4"
+        # Fallback para Rachel (21m00Tcm4TlvDq8ikWAM) se não houver voz definida
+        selected_voice = voice_id or "21m00Tcm4TlvDq8ikWAM"
         
-        # Endpoint de streaming com timestamps para sincronia fina
-        url = f"https://api.elevenlabs.io/v1/text-to-speech/{selected_voice}/stream-with-timestamps"
+        # Endpoint unificado (Audio + Timestamps) - Mais robusto que o stream-with-timestamps
+        url = f"https://api.elevenlabs.io/v1/text-to-speech/{selected_voice}/with-timestamps"
         
         headers = {
             "Content-Type": "application/json",
@@ -140,33 +141,27 @@ class AIEngine:
             "model_id": "eleven_multilingual_v2",
             "voice_settings": {
                 "stability": 0.5,
-                "similarity_boost: ": 0.75,
+                "similarity_boost": 0.75,
                 "style": 0.0,
                 "use_speaker_boost": True
             }
         }
 
-        response = requests.post(url, json=data, headers=headers, stream=True)
+        response = requests.post(url, json=data, headers=headers)
         
         if response.status_code != 200:
             print(f"❌ Erro ElevenLabs: {response.status_code} - {response.text}")
             raise Exception(f"Falha na geração do áudio: {response.text}")
 
-        audio_bytes = bytearray()
-        alignment_data = []
+        # O endpoint /with-timestamps retorna um JSON com audio_base64 e alignment
+        result = response.json()
+        audio_base64 = result.get("audio_base64")
+        alignment = result.get("alignment", {})
 
-        # O ElevenLabs retorna um JSON Stream (ndjson)
-        for line in response.iter_lines():
-            if line:
-                chunk = json.loads(line)
-                
-                # Áudio em Base64
-                if "audio_base64" in chunk and chunk["audio_base64"]:
-                    audio_bytes.extend(base64.b64decode(chunk["audio_base64"]))
-                
-                # Alinhamento (Timestamps)
-                if "alignment" in chunk and chunk["alignment"]:
-                    alignment_data.append(chunk["alignment"])
+        if not audio_base64:
+            raise Exception("Erro: Resposta do ElevenLabs não contém áudio.")
+
+        audio_bytes = base64.b64decode(audio_base64)
 
         # Salva o arquivo final de áudio
         print(f"Salvando áudio em: {output_path}")
@@ -178,31 +173,29 @@ class AIEngine:
         current_word = ""
         word_start = 0
         
+        chars = alignment.get('characters', [])
+        starts = alignment.get('character_start_times_seconds', [])
+        ends = alignment.get('character_end_times_seconds', [])
+        
         # Agrupar caracteres em palavras
-        for block in alignment_data:
-            chars = block.get('characters', [])
-            starts = block.get('character_start_times_seconds', [])
-            ends = block.get('character_end_times_seconds', [])
-            
-            for i, char in enumerate(chars):
-                if char.strip() == "":
-                    # Fim de palavra detectado (espaço)
-                    if current_word:
-                        subtitles.append({
-                            "text": current_word,
-                            "startMs": int(word_start * 1000),
-                            "endMs": int(ends[i-1] * 1000) if i > 0 else int(ends[i] * 1000)
-                        })
-                        current_word = ""
-                else:
-                    if not current_word:
-                        word_start = starts[i]
-                    current_word += char
+        for i, char in enumerate(chars):
+            if char.strip() == "":
+                # Fim de palavra detectado (espaço)
+                if current_word:
+                    subtitles.append({
+                        "text": current_word,
+                        "startMs": int(word_start * 1000),
+                        "endMs": int(ends[i-1] * 1000) if i > 0 else int(ends[i] * 1000)
+                    })
+                    current_word = ""
+            else:
+                if not current_word:
+                    word_start = starts[i]
+                current_word += char
         
         # Última palavra
         if current_word:
-            # Pega o último end do último bloco se possível
-            final_end = alignment_data[-1].get('character_end_times_seconds', [0])[-1] if alignment_data else 0
+            final_end = ends[-1] if ends else 0
             subtitles.append({
                 "text": current_word,
                 "startMs": int(word_start * 1000),
