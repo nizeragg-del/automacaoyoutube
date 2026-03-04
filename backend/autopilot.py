@@ -31,27 +31,32 @@ def main():
     print(f"\n🚀 Iniciando Varredura do Piloto Automático... (Dia Atual: {current_day})")
 
     try:
-        # Busca todas as rotinas que estão ativas
-        response = supabase.table('automations').select('*').eq('is_active', True).execute()
-        active_routines = response.data
+        # Busca TODAS as rotinas sem filtro '.eq' para evitar bugs de parsing de Boolean do Postgres no Python
+        response = supabase.table('automations').select('*').execute()
+        all_routines = response.data
+        
+        print(f"  -> Total de rotinas cadastradas no BD: {len(all_routines)}")
         
         routines_today = []
-        for routine in active_routines:
-            raw_days = routine.get('days_of_week', [])
-            days = []
+        for routine in all_routines:
+            is_active = routine.get('is_active', False)
+            theme = routine.get('theme', 'Sem Tema')
             
-            # Garante que temos uma lista de inteiros. O Postgres via API pode mandar strings "[2]" ou inteiros literais.
-            if isinstance(raw_days, str):
-                import json
-                try:
-                    days = json.loads(raw_days)
-                except:
-                    pass
-            elif isinstance(raw_days, list):
-                # Converte tudo para INT para ter certeza 
-                days = [int(d) for d in raw_days if str(d).isdigit()]
+            # Validação flexível de Boolean (True, 'true', 'True', 1)
+            is_really_active = is_active is True or str(is_active).lower() == 'true' or str(is_active) == '1'
+            
+            if not is_really_active:
+                print(f"  -> [{theme}] IGNORADA: is_active={is_active} (Usuário pausou a automação)")
+                continue
                 
-            print(f"[{routine.get('theme')}] Dias da rotina: {days} | Hoje: {current_day}")
+            raw_days = routine.get('days_of_week', [])
+            
+            # Usar regex para extrair qualquer número não importando se veio string '{"1","2"}' ou JSON list
+            import re
+            numbers = re.findall(r'\d+', str(raw_days))
+            days = [int(n) for n in numbers]
+            
+            print(f"  -> [{theme}] Dias capturados: {days} | Hoje: {current_day}")
             
             if current_day in days:
                 routines_today.append(routine)
