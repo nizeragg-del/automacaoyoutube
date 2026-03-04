@@ -118,32 +118,104 @@ class AIEngine:
 
     def generate_audio(self, text: str, output_path: str = "narration.mp3", elevenlabs_key: str = None, voice_id: str = None):
         """
-        Converte o texto em áudio usando ElevenLabs.
-        Em modo SaaS, recebe a chave e o ID da voz do usuário.
+        Converte o texto em áudio usando ElevenLabs com Timestamps de palavras.
         """
-        print(f"Gerando narração com ElevenLabs...")
-        from elevenlabs.client import ElevenLabs
+        import base64
+        import json
         
+        print(f"Gerando narração com ElevenLabs (Timestamps incluídos)...")
         api_key = elevenlabs_key or os.getenv("ELEVENLABS_API_KEY")
-        client = ElevenLabs(api_key=api_key)
+        selected_voice = voice_id or "pqHfZKP75CvOlQylNhV4"
         
-        # ID da voz (Padrão: Bill se não fornecido)
-        # Bill: pqHfZKP75CvOlQylNhV4
-        selected_voice = voice_id or "pqHfZKP75CvOlQylNhV4" 
+        # Endpoint de streaming com timestamps para sincronia fina
+        url = f"https://api.elevenlabs.io/v1/text-to-speech/{selected_voice}/stream-with-timestamps"
         
-        audio_generator = client.text_to_speech.convert(
-            text=text,
-            voice_id=selected_voice,
-            model_id="eleven_multilingual_v2"
-        )
+        headers = {
+            "Content-Type": "application/json",
+            "xi-api-key": api_key,
+        }
         
-        # Salva o áudio
+        data = {
+            "text": text,
+            "model_id": "eleven_multilingual_v2",
+            "voice_settings": {
+                "stability": 0.5,
+                "similarity_boost: ": 0.75,
+                "style": 0.0,
+                "use_speaker_boost": True
+            }
+        }
+
+        response = requests.post(url, json=data, headers=headers, stream=True)
+        
+        if response.status_code != 200:
+            print(f"❌ Erro ElevenLabs: {response.status_code} - {response.text}")
+            raise Exception(f"Falha na geração do áudio: {response.text}")
+
+        audio_bytes = bytearray()
+        alignment_data = []
+
+        # O ElevenLabs retorna um JSON Stream (ndjson)
+        for line in response.iter_lines():
+            if line:
+                chunk = json.loads(line)
+                
+                # Áudio em Base64
+                if "audio_base64" in chunk and chunk["audio_base64"]:
+                    audio_bytes.extend(base64.b64decode(chunk["audio_base64"]))
+                
+                # Alinhamento (Timestamps)
+                if "alignment" in chunk and chunk["alignment"]:
+                    alignment_data.append(chunk["alignment"])
+
+        # Salva o arquivo final de áudio
         print(f"Salvando áudio em: {output_path}")
         with open(output_path, "wb") as f:
-            for chunk in audio_generator:
-                f.write(chunk)
-                
-        print(f"Áudio concluído!")
+            f.write(audio_bytes)
+
+        # Processar Alinhamento em Legendas (Word Level)
+        subtitles = []
+        current_word = ""
+        word_start = 0
+        
+        # Agrupar caracteres em palavras
+        for block in alignment_data:
+            chars = block.get('characters', [])
+            starts = block.get('character_start_times_seconds', [])
+            ends = block.get('character_end_times_seconds', [])
+            
+            for i, char in enumerate(chars):
+                if char.strip() == "":
+                    # Fim de palavra detectado (espaço)
+                    if current_word:
+                        subtitles.append({
+                            "text": current_word,
+                            "startMs": int(word_start * 1000),
+                            "endMs": int(ends[i-1] * 1000) if i > 0 else int(ends[i] * 1000)
+                        })
+                        current_word = ""
+                else:
+                    if not current_word:
+                        word_start = starts[i]
+                    current_word += char
+        
+        # Última palavra
+        if current_word:
+            # Pega o último end do último bloco se possível
+            final_end = alignment_data[-1].get('character_end_times_seconds', [0])[-1] if alignment_data else 0
+            subtitles.append({
+                "text": current_word,
+                "startMs": int(word_start * 1000),
+                "endMs": int(final_end * 1000)
+            })
+
+        # Salva arquivo de legendas no mesmo public/ do áudio
+        sub_path = output_path.replace(".mp3", ".json")
+        print(f"Salvando legendas em: {sub_path}")
+        with open(sub_path, "w", encoding="utf-8") as f:
+            json.dump(subtitles, f, indent=2, ensure_ascii=False)
+
+        print(f"Geração de Voiceover completa!")
         return output_path
         
     def generate_detailed_prompt(self, user_input: str) -> str:

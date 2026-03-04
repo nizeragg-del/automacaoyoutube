@@ -8,6 +8,7 @@ import {
     useVideoConfig,
     staticFile,
 } from "remotion";
+import { Subtitles } from "./components/Subtitles";
 
 interface StoryData {
     images: string[];
@@ -43,15 +44,15 @@ export const StoryComposition: React.FC<StoryData> = ({ images, text, audio }) =
 
                 // 1. Efeito de Ken Burns (Zoom e Pan suave por cena)
                 // Usando o start/end da cena específica, o Ken Burns reinicia pra cada imagem nova
-                const scale = interpolate(frame, [startFrame, endFrame], [1, 1.15], {
+                const scale = interpolate(frame, [startFrame, endFrame], [1, 1.18], {
                     extrapolateRight: "clamp",
                     extrapolateLeft: "clamp"
                 });
 
                 // Movimento de Pan intercalado (Cena par move esq/dir, Cena ímpar move dir/esq)
                 const panMod = index % 2 === 0 ? 1 : -1;
-                const panX = interpolate(frame, [startFrame, endFrame], [-15 * panMod, 15 * panMod]);
-                const panY = interpolate(frame, [startFrame, endFrame], [-8 * panMod, 8 * panMod]);
+                const panX = interpolate(frame, [startFrame, endFrame], [-18 * panMod, 18 * panMod]);
+                const panY = interpolate(frame, [startFrame, endFrame], [-10 * panMod, 10 * panMod]);
 
                 // 2. Crossfade 
                 // Entrada da cena atual
@@ -93,11 +94,50 @@ export const StoryComposition: React.FC<StoryData> = ({ images, text, audio }) =
                 );
             })}
 
+            {/* Legendas Dinâmicas Sincronizadas (Sobre as imagens e vinheta) */}
+            <Subtitles audioFile={audio} />
+
+            {/* Headline (Título) no topo para retenção imediata */}
+            <AbsoluteFill style={{
+                top: "8%",
+                height: "15%",
+                justifyContent: "center",
+                alignItems: "center",
+                padding: "0 50px"
+            }}>
+                <h1 style={{
+                    color: "white",
+                    fontSize: 48,
+                    fontWeight: 900,
+                    textTransform: "uppercase",
+                    textAlign: "center",
+                    fontFamily: "Inter, sans-serif",
+                    textShadow: "0px 4px 10px rgba(0,0,0,0.9), 2px 2px 0px #000",
+                    margin: 0,
+                    letterSpacing: "1px"
+                }}>
+                    {text}
+                </h1>
+            </AbsoluteFill>
+
+            {/* Efeito de Grain (Ruído Cinemático) para textura premium */}
+            <AbsoluteFill
+                style={{
+                    backgroundColor: "transparent",
+                    backgroundImage: `url("https://www.transparenttextures.com/patterns/real-carbon-fibre.png")`,
+                    opacity: 0.08,
+                    mixBlendMode: "overlay",
+                    pointerEvents: "none",
+                    zIndex: validImages.length + 5
+                }}
+            />
+
             {/* Vinheta Estilizada (Cinemática) Escurece a tela ao redor como Cinema */}
             <AbsoluteFill
                 style={{
-                    background: "radial-gradient(circle, rgba(0,0,0,0) 40%, rgba(0,0,0,0.7) 100%)",
-                    zIndex: validImages.length + 1 // Sempre acima das imagens
+                    background: "radial-gradient(circle, rgba(0,0,0,0) 35%, rgba(0,0,0,0.85) 100%)",
+                    zIndex: validImages.length + 10, // Sempre acima de tudo, exceto talvez grão se quiser
+                    pointerEvents: "none"
                 }}
             />
 
