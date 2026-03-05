@@ -102,9 +102,11 @@ def run_story_automation(idea, gemini_key=None, hf_key=None, elevenlabs_key=None
     # Executar Renderização do Remotion
     output_video = os.path.join(os.getcwd(), "final_story.mp4")
     
-    render_cmd = f'npx remotion render src/index.ts StoryVideo "{output_video}" --props=public/story_props.json --duration={duration_frames}'
+    # Otimização: Usamos espaço em vez de '=' para evitar bugs de parsing em diferentes shells
+    render_cmd = f'npx remotion render src/index.ts StoryVideo "{output_video}" --props public/story_props.json --duration={duration_frames}'
     
     print(f"Iniciando renderização no diretório: {remotion_dir}")
+    print(f"Comando EXECUTADO: {render_cmd}") # Log de segurança
     try:
         # No Linux, shell=True funciona melhor com uma string única
         subprocess.run(render_cmd, cwd=remotion_dir, check=True, shell=True)
