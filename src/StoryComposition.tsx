@@ -9,12 +9,13 @@ import {
     staticFile,
 } from "remotion";
 import { Subtitles } from "./components/Subtitles";
+import { Caption } from "@remotion/captions";
 
 interface StoryData {
     images: string[];
     text: string;
     audio: string;
-    subtitles?: any[]; // Nova prop para injeção direta
+    subtitles?: Caption[]; // Tipagem correta para injeção direta
 }
 
 export const StoryComposition: React.FC<StoryData> = ({ images, text, audio, subtitles }) => {

@@ -3,7 +3,7 @@ import { Composition, staticFile } from "remotion";
 import { StoryComposition } from "./StoryComposition";
 import { loadFont } from "@remotion/google-fonts/Inter";
 
-loadFont({ weights: ["400", "900"] }); // Otimizado: Carrega apenas o necessário
+loadFont(); // Inter é uma fonte variável ou o pacote carrega o padrão. Corrigindo tipagem.
 
 export const RemotionRoot: React.FC = () => {
   return (
