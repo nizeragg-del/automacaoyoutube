@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
     AbsoluteFill,
     staticFile,
-    useDelayRender,
+    delayRender,
     continueRender,
     useCurrentFrame,
     useVideoConfig,
@@ -13,20 +13,22 @@ import { createTikTokStyleCaptions, Caption } from "@remotion/captions";
 
 interface SubtitlesProps {
     audioFile: string;
-    subtitles?: Caption[]; // Dados injetados diretamente
+    subtitles?: Caption[]; // Dados injetados diretamente via props
 }
 
-const HIGHLIGHT_COLOR = "#FFD700"; // Amarelo Ouro para destaque
-const SWITCH_CAPTIONS_EVERY_MS = 1400; // Agrupa um pouco de palavras por "página"
+const HIGHLIGHT_COLOR = "#FFD700"; // Amarelo Ouro
+const SWITCH_CAPTIONS_EVERY_MS = 1400; // Agrupa palavras
 
 export const Subtitles: React.FC<SubtitlesProps> = ({ audioFile, subtitles }) => {
     const [captions, setCaptions] = useState<Caption[] | null>(subtitles || null);
+    // Usamos delayRender diretamente para máxima compatibilidade entre versões de hooks
+    const [handle] = useState(() => delayRender("loading-captions"));
+
     const { fps } = useVideoConfig();
     const frame = useCurrentFrame();
-    const handle = useDelayRender("loading-captions");
 
     const fetchCaptions = useCallback(async () => {
-        // Se já recebemos via props, não precisa fazer fetch
+        // Se já temos as legendas via props, liberamos a renderização imediatamente
         if (subtitles) {
             continueRender(handle);
             return;
@@ -58,10 +60,7 @@ export const Subtitles: React.FC<SubtitlesProps> = ({ audioFile, subtitles }) =>
 
     if (!captions || pages.length === 0) return null;
 
-    // Tempo atual em milissegundos
     const currentTimeMs = (frame / fps) * 1000;
-
-    // Encontra a página atual baseada no tempo
     const currentPage = pages.find(p => currentTimeMs >= p.startMs && currentTimeMs < p.endMs) || null;
 
     if (!currentPage) return null;
@@ -70,7 +69,7 @@ export const Subtitles: React.FC<SubtitlesProps> = ({ audioFile, subtitles }) =>
         <AbsoluteFill style={{
             justifyContent: "center",
             alignItems: "center",
-            top: "15%", // Posição central-alta para não cobrar elementos da UI do Reels
+            top: "15%",
             padding: "0 40px"
         }}>
             <div style={{
@@ -89,8 +88,6 @@ export const Subtitles: React.FC<SubtitlesProps> = ({ audioFile, subtitles }) =>
             }}>
                 {currentPage.tokens.map((token, i) => {
                     const isActive = currentTimeMs >= token.fromMs && currentTimeMs < token.toMs;
-
-                    // Pequena animação de "pulo" na palavra ativa
                     const scale = isActive ? 1.15 : 1;
                     const rotate = isActive ? (i % 2 === 0 ? 1 : -1) : 0;
 

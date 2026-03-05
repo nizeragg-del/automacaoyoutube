@@ -15,36 +15,31 @@ interface StoryData {
     images: string[];
     text: string;
     audio: string;
-    subtitles?: Caption[]; // Tipagem correta para injeção direta
+    subtitles?: Caption[]; // Injeção direta via props
 }
 
 export const StoryComposition: React.FC<StoryData> = ({ images, text, audio, subtitles }) => {
     const frame = useCurrentFrame();
     const { durationInFrames, fps } = useVideoConfig();
 
-    // Proteção de fallback para arrays vazios/indefinidos por versão legado
+    // Proteção de fallback para arrays vazios/indefinidos
     const validImages = Array.isArray(images) && images.length > 0 ? images : [""];
 
-    // Calcula quantos frames cada imagem deve ficar na tela, distribuindo o tempo
+    // Calcula quantos frames cada imagem deve ficar na tela
     const framesPerImage = durationInFrames / validImages.length;
-    // Duração do Crossfade (transição)
-    const transitionFrames = fps * 1.5; // 1.5 Segundos de transição suave
+    const transitionFrames = fps * 1.5; // Transição suave
 
     return (
         <AbsoluteFill style={{ backgroundColor: "black" }}>
 
             {validImages.map((src, index) => {
-                // Cálculo de tempo de cada cena (Atrasado + Duração)
                 const startFrame = index * framesPerImage;
-                // Cada cena estende um pouco na próxima para o crossfade acontecer
                 const endFrame = startFrame + framesPerImage + (index < validImages.length - 1 ? transitionFrames : 0);
 
-                // Se a cabeça de leitura (CurrentFrame) estiver fora dos limites + sobra de transição, não renderiza
                 if (frame < startFrame || frame > endFrame) {
                     return null;
                 }
 
-                // 1. Efeito de Ken Burns (Zoom e Pan suave por cena)
                 const scale = interpolate(frame, [startFrame, endFrame], [1, 1.18], {
                     extrapolateRight: "clamp",
                     extrapolateLeft: "clamp"
@@ -54,7 +49,6 @@ export const StoryComposition: React.FC<StoryData> = ({ images, text, audio, sub
                 const panX = interpolate(frame, [startFrame, endFrame], [-18 * panMod, 18 * panMod]);
                 const panY = interpolate(frame, [startFrame, endFrame], [-10 * panMod, 10 * panMod]);
 
-                // 2. Crossfade 
                 let opacity = interpolate(frame, [startFrame, startFrame + transitionFrames], [0, 1], {
                     extrapolateRight: "clamp", extrapolateLeft: "clamp"
                 });
@@ -90,10 +84,10 @@ export const StoryComposition: React.FC<StoryData> = ({ images, text, audio, sub
                 );
             })}
 
-            {/* Legendas Dinâmicas Sincronizadas (Com injeção direta de props) */}
+            {/* Legendas Dinâmicas Sincronizadas */}
             <Subtitles audioFile={audio} subtitles={subtitles} />
 
-            {/* Headline (Título) no topo para retenção imediata */}
+            {/* Headline (Título) */}
             <AbsoluteFill style={{
                 top: "8%",
                 height: "15%",
@@ -116,7 +110,7 @@ export const StoryComposition: React.FC<StoryData> = ({ images, text, audio, sub
                 </h1>
             </AbsoluteFill>
 
-            {/* Efeito de Grain (Ruído Cinemático) para textura premium */}
+            {/* Efeito de Grain / Ruído */}
             <AbsoluteFill
                 style={{
                     backgroundColor: "transparent",
@@ -128,7 +122,7 @@ export const StoryComposition: React.FC<StoryData> = ({ images, text, audio, sub
                 }}
             />
 
-            {/* Vinheta Cinemática */}
+            {/* Vinheta */}
             <AbsoluteFill
                 style={{
                     background: "radial-gradient(circle, rgba(0,0,0,0) 35%, rgba(0,0,0,0.85) 100%)",
