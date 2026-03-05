@@ -1,33 +1,48 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { AbsoluteFill, staticFile, useDelayRender, useCurrentFrame, useVideoConfig, interpolate, Easing } from "remotion";
+import {
+    AbsoluteFill,
+    staticFile,
+    useDelayRender,
+    continueRender,
+    useCurrentFrame,
+    useVideoConfig,
+    interpolate,
+    Easing
+} from "remotion";
 import { createTikTokStyleCaptions, Caption } from "@remotion/captions";
 
 interface SubtitlesProps {
     audioFile: string;
+    subtitles?: Caption[]; // Dados injetados diretamente
 }
 
 const HIGHLIGHT_COLOR = "#FFD700"; // Amarelo Ouro para destaque
 const SWITCH_CAPTIONS_EVERY_MS = 1400; // Agrupa um pouco de palavras por "página"
 
-export const Subtitles: React.FC<SubtitlesProps> = ({ audioFile }) => {
-    const [captions, setCaptions] = useState<Caption[] | null>(null);
+export const Subtitles: React.FC<SubtitlesProps> = ({ audioFile, subtitles }) => {
+    const [captions, setCaptions] = useState<Caption[] | null>(subtitles || null);
     const { fps } = useVideoConfig();
     const frame = useCurrentFrame();
     const handle = useDelayRender("loading-captions");
 
     const fetchCaptions = useCallback(async () => {
+        // Se já recebemos via props, não precisa fazer fetch
+        if (subtitles) {
+            continueRender(handle);
+            return;
+        }
+
         try {
             const jsonFile = audioFile.replace(".mp3", ".json");
             const response = await fetch(staticFile(jsonFile));
             const data = await response.json();
             setCaptions(data);
         } catch (e) {
-            console.error("Erro ao carregar legendas:", e);
+            console.error("Erro ao carregar legendas via fetch:", e);
         } finally {
-            // @ts-ignore
-            window.continueRender?.(handle); // Suporte para versões variadas do Remotion
+            continueRender(handle);
         }
-    }, [audioFile, handle]);
+    }, [audioFile, handle, subtitles]);
 
     useEffect(() => {
         fetchCaptions();

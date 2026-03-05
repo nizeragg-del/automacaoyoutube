@@ -14,9 +14,10 @@ interface StoryData {
     images: string[];
     text: string;
     audio: string;
+    subtitles?: any[]; // Nova prop para injeção direta
 }
 
-export const StoryComposition: React.FC<StoryData> = ({ images, text, audio }) => {
+export const StoryComposition: React.FC<StoryData> = ({ images, text, audio, subtitles }) => {
     const frame = useCurrentFrame();
     const { durationInFrames, fps } = useVideoConfig();
 
@@ -43,31 +44,25 @@ export const StoryComposition: React.FC<StoryData> = ({ images, text, audio }) =
                 }
 
                 // 1. Efeito de Ken Burns (Zoom e Pan suave por cena)
-                // Usando o start/end da cena específica, o Ken Burns reinicia pra cada imagem nova
                 const scale = interpolate(frame, [startFrame, endFrame], [1, 1.18], {
                     extrapolateRight: "clamp",
                     extrapolateLeft: "clamp"
                 });
 
-                // Movimento de Pan intercalado (Cena par move esq/dir, Cena ímpar move dir/esq)
                 const panMod = index % 2 === 0 ? 1 : -1;
                 const panX = interpolate(frame, [startFrame, endFrame], [-18 * panMod, 18 * panMod]);
                 const panY = interpolate(frame, [startFrame, endFrame], [-10 * panMod, 10 * panMod]);
 
                 // 2. Crossfade 
-                // Entrada da cena atual
                 let opacity = interpolate(frame, [startFrame, startFrame + transitionFrames], [0, 1], {
                     extrapolateRight: "clamp", extrapolateLeft: "clamp"
                 });
 
-                // A 1ª cena não tem fade_in de outra imagem, mas vamos deixá-la vir do escuro
-                // Saída (FadeOut) dessa mesma cena durante a transição com a próxima
                 if (index < validImages.length - 1) {
                     const fadeOutStart = endFrame - transitionFrames;
                     const opacityOut = interpolate(frame, [fadeOutStart, endFrame], [1, 0], {
                         extrapolateRight: "clamp", extrapolateLeft: "clamp"
                     });
-                    // O valor mestre da opacidade da cena desce no fim, enquanto a de cima sobe
                     opacity = Math.min(opacity, opacityOut);
                 }
 
@@ -94,8 +89,8 @@ export const StoryComposition: React.FC<StoryData> = ({ images, text, audio }) =
                 );
             })}
 
-            {/* Legendas Dinâmicas Sincronizadas (Sobre as imagens e vinheta) */}
-            <Subtitles audioFile={audio} />
+            {/* Legendas Dinâmicas Sincronizadas (Com injeção direta de props) */}
+            <Subtitles audioFile={audio} subtitles={subtitles} />
 
             {/* Headline (Título) no topo para retenção imediata */}
             <AbsoluteFill style={{
@@ -132,11 +127,11 @@ export const StoryComposition: React.FC<StoryData> = ({ images, text, audio }) =
                 }}
             />
 
-            {/* Vinheta Estilizada (Cinemática) Escurece a tela ao redor como Cinema */}
+            {/* Vinheta Cinemática */}
             <AbsoluteFill
                 style={{
                     background: "radial-gradient(circle, rgba(0,0,0,0) 35%, rgba(0,0,0,0.85) 100%)",
-                    zIndex: validImages.length + 10, // Sempre acima de tudo, exceto talvez grão se quiser
+                    zIndex: validImages.length + 10,
                     pointerEvents: "none"
                 }}
             />

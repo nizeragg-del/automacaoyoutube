@@ -41,7 +41,7 @@ def run_story_automation(idea, gemini_key=None, hf_key=None, elevenlabs_key=None
     print("\n--- [2] Gerando Narração (ElevenLabs) ---")
     audio_filename = "narration.mp3"
     audio_path = os.path.join(public_dir, audio_filename)
-    engine.generate_audio(
+    audio_path, subtitles = engine.generate_audio(
         story['full_script'], 
         audio_path, 
         elevenlabs_key=elevenlabs_key, 
@@ -70,7 +70,6 @@ def run_story_automation(idea, gemini_key=None, hf_key=None, elevenlabs_key=None
             image_filenames.append(image_filename)
         except Exception as img_err:
             print(f"Erro ao gerar imagem {index+1}: {img_err}")
-            # Se falhar uma, tenta continuar com as outras ou salva um placheolder se quiser.
             pass
             
     if not image_filenames:
@@ -89,9 +88,10 @@ def run_story_automation(idea, gemini_key=None, hf_key=None, elevenlabs_key=None
     print(f"Duração detectada: {audio_duration_secs}s ({duration_frames} frames)")
 
     story_data = {
-        "images": image_filenames, # Agora envia array
+        "images": image_filenames,
         "text": story['title'],
         "audio": audio_filename,
+        "subtitles": subtitles, # Injeção direta!
         "durationInFrames": duration_frames
     }
     

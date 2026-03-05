@@ -209,7 +209,7 @@ class AIEngine:
             json.dump(subtitles, f, indent=2, ensure_ascii=False)
 
         print(f"Geração de Voiceover completa!")
-        return output_path
+        return output_path, subtitles
         
     def generate_detailed_prompt(self, user_input: str) -> str:
         """
