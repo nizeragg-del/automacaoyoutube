@@ -21,9 +21,9 @@ class AIEngine:
         self.runway_key = runway_key or os.getenv("RUNWAY_API_KEY")
 
         # Configuração Google AI Studio (Novo SDK google-genai)
+        # Removido v1beta global para evitar 404 em modelos estáveis
         self.client = genai.Client(
-            api_key=self.gemini_key,
-            http_options={'api_version': 'v1beta'}
+            api_key=self.gemini_key
         )
         
         # Configuração Hugging Face Hub (Sempre vertical 9:16 para Shorts)
@@ -74,10 +74,14 @@ class AIEngine:
         prompt = f"Historical story about: {user_input}. Ensure the script is under 1000 characters and COMPLETELY in Portuguese (PT-BR)."
         
         # Modelos descobertos via client.models.list()
+        # Lista expandida com versões específicas caso os aliases falhem
         models_to_try = [
             "gemini-2.0-flash",
             "gemini-1.5-flash",
-            "gemini-1.5-pro"
+            "gemini-1.5-flash-002",
+            "gemini-1.5-flash-8b",
+            "gemini-1.5-pro",
+            "gemini-1.5-pro-002"
         ]
         
         last_error = None
@@ -109,6 +113,24 @@ class AIEngine:
                         time.sleep(seconds)
                     elif "404" in error_msg or "NOT_FOUND" in error_msg:
                         print(f"Modelo {model_id} não suportado. Pulando...")
+                    elif "400" in error_msg or "INVALID_ARGUMENT" in error_msg:
+                        # Se falhar com 400 em v1, tenta forçar v1beta para este modelo
+                        print(f"Erro 400 detectado no {model_id}. Tentando com v1beta...")
+                        try:
+                            response = self.client.models.generate_content(
+                                model=model_id,
+                                contents=prompt,
+                                config=types.GenerateContentConfig(
+                                    http_options={'api_version': 'v1beta'},
+                                    system_instruction=system_instruction,
+                                    response_mime_type="application/json"
+                                )
+                            )
+                            print(f"Sucesso com {model_id} via v1beta!")
+                            return json.loads(response.text)
+                        except Exception as e2:
+                            print(f"Falha definitiva no {model_id} (v1beta): {e2}")
+                            last_error = e2
                     else:
                         time.sleep(5)
                     continue
@@ -228,10 +250,12 @@ class AIEngine:
         
         prompt = f"User POV Idea: {user_input}"
         
-        # Lista de modelos para tentar (baseado no diagnóstico anterior)
+        # Lista resiliente para prompts
         models_to_try = [
             "gemini-2.0-flash",
-            "gemini-1.5-flash"
+            "gemini-1.5-flash",
+            "gemini-1.5-flash-002",
+            "gemini-1.5-flash-8b"
         ]
         
         last_error = None
