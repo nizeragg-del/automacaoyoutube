@@ -75,8 +75,9 @@ class AIEngine:
                     config=config_beta
                 )
             except Exception as e2:
-                # Se ambos falharem, levantamos o erro original
-                raise e
+                # Se ambos falharem, levantamos o erro mais recente (v1beta) para ver o motivo real
+                print(f"v1beta também falhou: {e2}")
+                raise e2
 
     def _clean_json_response(self, text: str) -> dict:
         """
