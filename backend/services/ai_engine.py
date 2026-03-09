@@ -22,8 +22,7 @@ class AIEngine:
 
         # Configuração Google AI Studio (Novo SDK google-genai)
         self.client = genai.Client(
-            api_key=self.gemini_key,
-            http_options={'api_version': 'v1beta'}
+            api_key=self.gemini_key
         )
         
         # Configuração Hugging Face Hub (Sempre vertical 9:16 para Shorts)
@@ -77,7 +76,10 @@ class AIEngine:
         models_to_try = [
             "gemini-2.0-flash",
             "gemini-1.5-flash",
-            "gemini-1.5-pro"
+            "gemini-1.5-flash-8b",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash-latest",
+            "gemini-1.5-pro-latest"
         ]
         
         last_error = None
@@ -300,11 +302,13 @@ class AIEngine:
             model_id = "veo-3.1-generate-preview" 
             
             # Conforme assinatura detectada: image é argumento direto
+            # Veo exige v1beta explicitamente
             operation = self.client.models.generate_videos(
                 model=model_id,
                 prompt=prompt,
                 image=types.Image(uri=uploaded_file.uri),
                 config=types.GenerateVideosConfig(
+                    http_options={'api_version': 'v1beta'},
                     aspect_ratio="9:16",
                     duration_seconds=5
                 )
