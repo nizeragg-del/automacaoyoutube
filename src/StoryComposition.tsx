@@ -7,131 +7,146 @@ import {
     useCurrentFrame,
     useVideoConfig,
     staticFile,
+    spring,
 } from "remotion";
+import { TransitionSeries, linearTiming } from "@remotion/transitions";
+import { fade } from "@remotion/transitions/fade";
 import { Subtitles } from "./components/Subtitles";
+import { AudioVisualizer } from "./components/AudioVisualizer";
 import { Caption } from "@remotion/captions";
+import { useWindowedAudioData, visualizeAudio } from "@remotion/media-utils";
 
 interface StoryData {
     images: string[];
     text: string;
     audio: string;
-    subtitles?: Caption[]; // Injeção direta via props
+    subtitles?: Caption[];
 }
 
 export const StoryComposition: React.FC<StoryData> = ({ images, text, audio, subtitles }) => {
     const frame = useCurrentFrame();
     const { durationInFrames, fps } = useVideoConfig();
 
-    // Proteção de fallback para arrays vazios/indefinidos
-    const validImages = Array.isArray(images) && images.length > 0 ? images : [""];
+    // 1. Audio Analysis for Bass Bump
+    const audioSrc = audio.startsWith("http") ? audio : staticFile(audio);
+    const audioData = useWindowedAudioData({
+        src: audioSrc,
+        frame,
+        fps,
+        windowInSeconds: 0.1,
+    });
 
-    // Calcula quantos frames cada imagem deve ficar na tela
-    const framesPerImage = durationInFrames / validImages.length;
-    const transitionFrames = fps * 1.5; // Transição suave
+    let bassIntensity = 0;
+    if (audioData && audioData.audioData) {
+        const frequencies = visualizeAudio({
+            fps,
+            frame,
+            audioData: audioData.audioData,
+            numberOfSamples: 64,
+        });
+        const lowFreqs = frequencies.slice(0, 8); // Deep bass
+        bassIntensity = lowFreqs.reduce((acc, v) => acc + v, 0) / lowFreqs.length;
+    }
+
+    // 2. Logic for Transitions
+    const validImages = Array.isArray(images) && images.length > 0 ? images : [staticFile("placeholder.jpg")];
+    const transitionDuration = Math.floor(fps * 0.8); // 0.8s transition
+    const totalTransitionsDuration = transitionDuration * (validImages.length - 1);
+    const availableFrames = durationInFrames + totalTransitionsDuration;
+    const framesPerImage = Math.floor(availableFrames / validImages.length);
+
+    // Headline Animation
+    const headlineEntrance = spring({
+        frame,
+        fps,
+        config: { damping: 12 },
+        durationInFrames: 30,
+    });
 
     return (
-        <AbsoluteFill style={{ backgroundColor: "black" }}>
-
-            {validImages.map((src, index) => {
-                const startFrame = index * framesPerImage;
-                const endFrame = startFrame + framesPerImage + (index < validImages.length - 1 ? transitionFrames : 0);
-
-                if (frame < startFrame || frame > endFrame) {
-                    return null;
-                }
-
-                const scale = interpolate(frame, [startFrame, endFrame], [1, 1.18], {
-                    extrapolateRight: "clamp",
-                    extrapolateLeft: "clamp"
-                });
-
-                const panMod = index % 2 === 0 ? 1 : -1;
-                const panX = interpolate(frame, [startFrame, endFrame], [-18 * panMod, 18 * panMod]);
-                const panY = interpolate(frame, [startFrame, endFrame], [-10 * panMod, 10 * panMod]);
-
-                let opacity = interpolate(frame, [startFrame, startFrame + transitionFrames], [0, 1], {
-                    extrapolateRight: "clamp", extrapolateLeft: "clamp"
-                });
-
-                if (index < validImages.length - 1) {
-                    const fadeOutStart = endFrame - transitionFrames;
-                    const opacityOut = interpolate(frame, [fadeOutStart, endFrame], [1, 0], {
-                        extrapolateRight: "clamp", extrapolateLeft: "clamp"
-                    });
-                    opacity = Math.min(opacity, opacityOut);
-                }
-
-                return (
-                    <AbsoluteFill
-                        key={`scene-${index}`}
-                        style={{
-                            transform: `scale(${scale}) translate(${panX}px, ${panY}px)`,
-                            opacity,
-                            zIndex: index
-                        }}
-                    >
-                        {src && (
-                            <Img
-                                src={src.startsWith("http") ? src : staticFile(src)}
-                                style={{
-                                    width: "100%",
-                                    height: "100%",
-                                    objectFit: "cover",
-                                }}
+        <AbsoluteFill style={{
+            backgroundColor: "white",
+            transform: `scale(${1 + bassIntensity * 0.03})`, // Subtle bass bump
+        }}>
+            <TransitionSeries>
+                {validImages.map((src, index) => (
+                    <React.Fragment key={`fragment-${index}`}>
+                        <TransitionSeries.Sequence durationInFrames={framesPerImage}>
+                            <AbsoluteFill>
+                                <Img
+                                    src={src.startsWith("http") ? src : staticFile(src)}
+                                    style={{
+                                        width: "100%",
+                                        height: "100%",
+                                        objectFit: "cover",
+                                        // Subtle internal pan motion
+                                        transform: `scale(1.1) translate(${(index % 2 === 0 ? 1 : -1) * (frame / 20)}px, 0px)`,
+                                    }}
+                                />
+                            </AbsoluteFill>
+                        </TransitionSeries.Sequence>
+                        {index < validImages.length - 1 && (
+                            <TransitionSeries.Transition
+                                presentation={fade()}
+                                timing={linearTiming({ durationInFrames: transitionDuration })}
                             />
                         )}
-                    </AbsoluteFill>
-                );
-            })}
+                    </React.Fragment>
+                ))}
+            </TransitionSeries>
 
-            {/* Legendas Dinâmicas Sincronizadas */}
+            {/* Audio Visualization Layer */}
+            <AudioVisualizer audioSrc={audioSrc} />
+
+            {/* Legendas Dinâmicas */}
             <Subtitles audioFile={audio} subtitles={subtitles} />
 
-            {/* Headline (Título) */}
+            {/* Headline Profissional */}
             <AbsoluteFill style={{
                 top: "8%",
                 height: "15%",
                 justifyContent: "center",
                 alignItems: "center",
-                padding: "0 50px"
+                padding: "0 50px",
+                opacity: headlineEntrance,
+                transform: `translateY(${interpolate(headlineEntrance, [0, 1], [20, 0])}px)`
             }}>
                 <h1 style={{
                     color: "white",
-                    fontSize: 48,
+                    fontSize: 52,
                     fontWeight: 900,
                     textTransform: "uppercase",
                     textAlign: "center",
                     fontFamily: "Inter, sans-serif",
-                    textShadow: "0px 4px 10px rgba(0,0,0,0.9), 2px 2px 0px #000",
+                    textShadow: "0px 10px 30px rgba(0,0,0,0.8), 4px 4px 0px #000",
                     margin: 0,
-                    letterSpacing: "1px"
+                    letterSpacing: "2px",
+                    lineHeight: 1.1
                 }}>
                     {text}
                 </h1>
             </AbsoluteFill>
 
-            {/* Efeito de Grain / Ruído */}
+            {/* Polimento: Vinheta e Ruído */}
             <AbsoluteFill
                 style={{
-                    backgroundColor: "transparent",
+                    background: "radial-gradient(circle, rgba(0,0,0,0) 30%, rgba(0,0,0,0.9) 100%)",
+                    pointerEvents: "none",
+                    zIndex: 1000
+                }}
+            />
+
+            <AbsoluteFill
+                style={{
                     backgroundImage: `url("https://www.transparenttextures.com/patterns/real-carbon-fibre.png")`,
-                    opacity: 0.08,
+                    opacity: 0.05,
                     mixBlendMode: "overlay",
                     pointerEvents: "none",
-                    zIndex: validImages.length + 5
+                    zIndex: 1001
                 }}
             />
 
-            {/* Vinheta */}
-            <AbsoluteFill
-                style={{
-                    background: "radial-gradient(circle, rgba(0,0,0,0) 35%, rgba(0,0,0,0.85) 100%)",
-                    zIndex: validImages.length + 10,
-                    pointerEvents: "none"
-                }}
-            />
-
-            <Audio src={audio.startsWith("http") ? audio : staticFile(audio)} />
+            <Audio src={audioSrc} />
         </AbsoluteFill>
     );
 };

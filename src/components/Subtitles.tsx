@@ -6,29 +6,27 @@ import {
     continueRender,
     useCurrentFrame,
     useVideoConfig,
-    interpolate,
-    Easing
+    spring,
 } from "remotion";
 import { createTikTokStyleCaptions, Caption } from "@remotion/captions";
 
 interface SubtitlesProps {
     audioFile: string;
-    subtitles?: Caption[]; // Dados injetados diretamente via props
+    subtitles?: Caption[];
 }
 
 const HIGHLIGHT_COLOR = "#FFD700"; // Amarelo Ouro
-const SWITCH_CAPTIONS_EVERY_MS = 1400; // Agrupa palavras
+const HIGHLIGHT_BG = "#000000"; // Preto para contraste
+const SWITCH_CAPTIONS_EVERY_MS = 1400;
 
 export const Subtitles: React.FC<SubtitlesProps> = ({ audioFile, subtitles }) => {
     const [captions, setCaptions] = useState<Caption[] | null>(subtitles || null);
-    // Usamos delayRender diretamente para máxima compatibilidade entre versões de hooks
     const [handle] = useState(() => delayRender("loading-captions"));
 
     const { fps } = useVideoConfig();
     const frame = useCurrentFrame();
 
     const fetchCaptions = useCallback(async () => {
-        // Se já temos as legendas via props, liberamos a renderização imediatamente
         if (subtitles) {
             continueRender(handle);
             return;
@@ -61,7 +59,7 @@ export const Subtitles: React.FC<SubtitlesProps> = ({ audioFile, subtitles }) =>
     if (!captions || pages.length === 0) return null;
 
     const currentTimeMs = (frame / fps) * 1000;
-    const currentPage = pages.find(p => currentTimeMs >= p.startMs && currentTimeMs < p.endMs) || null;
+    const currentPage = pages.find(p => currentTimeMs >= p.startMs && currentTimeMs < p.startMs + p.durationMs) || null;
 
     if (!currentPage) return null;
 
@@ -69,27 +67,31 @@ export const Subtitles: React.FC<SubtitlesProps> = ({ audioFile, subtitles }) =>
         <AbsoluteFill style={{
             justifyContent: "center",
             alignItems: "center",
-            top: "15%",
-            padding: "0 40px"
+            top: "20%",
+            padding: "0 60px"
         }}>
             <div style={{
-                fontSize: 68,
+                fontSize: 72,
                 fontWeight: 900,
                 textAlign: "center",
                 color: "white",
                 textTransform: "uppercase",
                 fontFamily: "Inter, sans-serif",
-                textShadow: "0px 0px 15px rgba(0,0,0,0.8), 2px 2px 0px #000",
                 display: "flex",
                 flexWrap: "wrap",
                 justifyContent: "center",
-                gap: "12px",
+                gap: "18px",
                 lineHeight: 1.1
             }}>
                 {currentPage.tokens.map((token, i) => {
                     const isActive = currentTimeMs >= token.fromMs && currentTimeMs < token.toMs;
-                    const scale = isActive ? 1.15 : 1;
-                    const rotate = isActive ? (i % 2 === 0 ? 1 : -1) : 0;
+
+                    // Spring pop animation
+                    const scale = spring({
+                        frame: (currentTimeMs - token.fromMs) * (fps / 1000),
+                        fps,
+                        config: { damping: 10, stiffness: 200 },
+                    });
 
                     return (
                         <span
@@ -97,8 +99,12 @@ export const Subtitles: React.FC<SubtitlesProps> = ({ audioFile, subtitles }) =>
                             style={{
                                 color: isActive ? HIGHLIGHT_COLOR : "white",
                                 display: "inline-block",
-                                transform: `scale(${scale}) rotate(${rotate}deg)`,
-                                transition: "transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                                transform: `scale(${isActive ? 1 + scale * 0.15 : 1})`,
+                                backgroundColor: isActive ? HIGHLIGHT_BG : "transparent",
+                                padding: "0 12px",
+                                borderRadius: "8px",
+                                boxShadow: isActive ? "0px 10px 30px rgba(0,0,0,0.5)" : "none",
+                                textShadow: isActive ? "none" : "0px 0px 15px rgba(0,0,0,0.8), 2px 2px 0px #000",
                             }}
                         >
                             {token.text}
