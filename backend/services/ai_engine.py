@@ -21,9 +21,9 @@ class AIEngine:
         self.runway_key = runway_key or os.getenv("RUNWAY_API_KEY")
 
         # Configuração Google AI Studio (Novo SDK google-genai)
+        # Removido api_version global para permitir seleção dinâmica por modelo
         self.client = genai.Client(
-            api_key=self.gemini_key,
-            http_options={'api_version': 'v1beta'}
+            api_key=self.gemini_key
         )
         
         # Configuração Hugging Face Hub (Sempre vertical 9:16 para Shorts)
@@ -31,6 +31,50 @@ class AIEngine:
             model="stabilityai/stable-diffusion-xl-base-1.0",
             token=self.hf_key
         )
+
+    def _safe_generate(self, model_id, prompt, system_instruction=None, response_mime_type=None):
+        """
+        Gera conteúdo de forma ultra-robusta, tentando v1 e v1beta.
+        Resolve problemas de 404 (model mismatch) e 400 (SDK field bug).
+        """
+        # Tenta primeiro v1 (estável) com injeção manual para evitar bug do SDK
+        try:
+            print(f"Tentando {model_id} via v1 (Injeção Manual)...")
+            full_prompt = prompt
+            if system_instruction:
+                full_prompt = f"INSTRUÇÕES DO SISTEMA:\n{system_instruction}\n\nSOLICITAÇÃO DO USUÁRIO:\n{prompt}"
+            
+            # Note: Não passamos system_instruction aqui para evitar o bug 400 da Google
+            config = types.GenerateContentConfig(
+                http_options={'api_version': 'v1'}
+            )
+            if response_mime_type:
+                config.response_mime_type = response_mime_type
+
+            response = self.client.models.generate_content(
+                model=model_id,
+                contents=full_prompt,
+                config=config
+            )
+            return response
+        except Exception as e:
+            error_msg = str(e)
+            if "404" in error_msg or "400" in error_msg:
+                print(f"v1 falhou ({error_msg[:50]}...). Tentando v1beta...")
+                # Fallback para v1beta com o método padrão do SDK
+                config = types.GenerateContentConfig(
+                    http_options={'api_version': 'v1beta'},
+                    system_instruction=system_instruction
+                )
+                if response_mime_type:
+                    config.response_mime_type = response_mime_type
+                    
+                return self.client.models.generate_content(
+                    model=model_id,
+                    contents=prompt,
+                    config=config
+                )
+            raise e
 
     def generate_story_script(self, user_input: str) -> dict:
         """
@@ -73,7 +117,7 @@ class AIEngine:
         
         prompt = f"Historical story about: {user_input}. Ensure the script is under 1000 characters and COMPLETELY in Portuguese (PT-BR)."
         
-        # Modelos descobertos via client.models.list()
+        # Modelos estáveis e experimentais
         models_to_try = [
             "gemini-2.0-flash",
             "gemini-1.5-flash",
@@ -86,13 +130,11 @@ class AIEngine:
             for model_id in models_to_try:
                 try:
                     print(f"Tentativa {attempt+1} - Gerando roteiro com {model_id}...")
-                    response = self.client.models.generate_content(
-                        model=model_id,
-                        contents=prompt,
-                        config=types.GenerateContentConfig(
-                            system_instruction=system_instruction,
-                            response_mime_type="application/json"
-                        )
+                    response = self._safe_generate(
+                        model_id=model_id,
+                        prompt=prompt,
+                        system_instruction=system_instruction,
+                        response_mime_type="application/json"
                     )
                     print(f"Sucesso com {model_id}!")
                     return json.loads(response.text)
@@ -108,7 +150,7 @@ class AIEngine:
                         print(f"Cota excedida. Aguardando {seconds} segundos...")
                         time.sleep(seconds)
                     elif "404" in error_msg or "NOT_FOUND" in error_msg:
-                        print(f"Modelo {model_id} não suportado. Pulando...")
+                        print(f"Modelo {model_id} não suportado em nenhuma versão. Pulando...")
                     else:
                         time.sleep(5)
                     continue
@@ -228,25 +270,22 @@ class AIEngine:
         
         prompt = f"User POV Idea: {user_input}"
         
-        # Lista de modelos para tentar (baseado no diagnóstico anterior)
+        # Lista resiliente para prompts
         models_to_try = [
-            "gemini-flash-latest",
-            "gemini-pro-latest",
-            "gemini-1.5-flash", 
-            "gemini-2.0-flash"
+            "gemini-2.0-flash",
+            "gemini-1.5-flash",
+            "gemini-1.5-pro"
         ]
         
         last_error = None
         for model_id in models_to_try:
             try:
                 print(f"Tentando modelo Gemini: {model_id}...")
-                response = self.client.models.generate_content(
-                    model=model_id,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_instruction,
-                        response_mime_type="application/json"
-                    )
+                response = self._safe_generate(
+                    model_id=model_id,
+                    prompt=prompt,
+                    system_instruction=system_instruction,
+                    response_mime_type="application/json"
                 )
                 result = json.loads(response.text)
                 print(f"Sucesso com o modelo {model_id}!")
