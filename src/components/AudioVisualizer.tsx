@@ -8,7 +8,7 @@ interface AudioVisualizerProps {
 
 export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ audioSrc }) => {
     const frame = useCurrentFrame();
-    const { fps, width } = useVideoConfig();
+    const { fps } = useVideoConfig();
 
     const audioData = useWindowedAudioData({
         src: audioSrc,
