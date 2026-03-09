@@ -16,8 +16,8 @@ interface SubtitlesProps {
 }
 
 const HIGHLIGHT_COLOR = "#FFD700"; // Amarelo Ouro
-const HIGHLIGHT_BG = "#000000"; // Preto para contraste
-const SWITCH_CAPTIONS_EVERY_MS = 1400;
+const HIGHLIGHT_BG = "rgba(0, 0, 0, 0.85)"; // Fundo preto semi-transparente para melhor leitura
+const SWITCH_CAPTIONS_EVERY_MS = 250; // Reduzido drasticamente para evitar acúmulo de palavras
 
 export const Subtitles: React.FC<SubtitlesProps> = ({ audioFile, subtitles }) => {
     const [captions, setCaptions] = useState<Caption[] | null>(subtitles || null);
@@ -67,11 +67,12 @@ export const Subtitles: React.FC<SubtitlesProps> = ({ audioFile, subtitles }) =>
         <AbsoluteFill style={{
             justifyContent: "center",
             alignItems: "center",
-            top: "20%",
-            padding: "0 60px"
+            top: "35%", // Movido mais para baixo para não cobrir o rosto
+            height: "30%", // Limita a área vertical das legendas
+            padding: "0 80px"
         }}>
             <div style={{
-                fontSize: 72,
+                fontSize: 84, // Aumentado para impacto, mas em menos palavras
                 fontWeight: 900,
                 textAlign: "center",
                 color: "white",
@@ -80,8 +81,8 @@ export const Subtitles: React.FC<SubtitlesProps> = ({ audioFile, subtitles }) =>
                 display: "flex",
                 flexWrap: "wrap",
                 justifyContent: "center",
-                gap: "18px",
-                lineHeight: 1.1
+                gap: "20px",
+                lineHeight: 1.05
             }}>
                 {currentPage.tokens.map((token, i) => {
                     const isActive = currentTimeMs >= token.fromMs && currentTimeMs < token.toMs;
@@ -99,12 +100,12 @@ export const Subtitles: React.FC<SubtitlesProps> = ({ audioFile, subtitles }) =>
                             style={{
                                 color: isActive ? HIGHLIGHT_COLOR : "white",
                                 display: "inline-block",
-                                transform: `scale(${isActive ? 1 + scale * 0.15 : 1})`,
+                                transform: `scale(${isActive ? 1 + scale * 0.12 : 1})`,
                                 backgroundColor: isActive ? HIGHLIGHT_BG : "transparent",
-                                padding: "0 12px",
-                                borderRadius: "8px",
-                                boxShadow: isActive ? "0px 10px 30px rgba(0,0,0,0.5)" : "none",
-                                textShadow: isActive ? "none" : "0px 0px 15px rgba(0,0,0,0.8), 2px 2px 0px #000",
+                                padding: "4px 16px",
+                                borderRadius: "12px",
+                                boxShadow: isActive ? "0px 15px 40px rgba(0,0,0,0.6)" : "none",
+                                textShadow: isActive ? "none" : "0px 0px 20px rgba(0,0,0,0.9), 3px 3px 0px #000",
                             }}
                         >
                             {token.text}
