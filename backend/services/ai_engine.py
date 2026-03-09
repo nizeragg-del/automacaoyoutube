@@ -28,7 +28,7 @@ class AIEngine:
         
         # Configuração Hugging Face Hub (Sempre vertical 9:16 para Shorts)
         self.hf_client = InferenceClient(
-            model="black-forest-labs/FLUX.1-schnell",
+            model="stabilityai/stable-diffusion-xl-base-1.0",
             token=self.hf_key
         )
 
@@ -75,10 +75,9 @@ class AIEngine:
         
         # Modelos descobertos via client.models.list()
         models_to_try = [
-            "gemini-2.5-flash",
-            "gemini-2.5-pro",
+            "gemini-2.0-flash",
             "gemini-1.5-flash",
-            "gemini-2.0-flash"
+            "gemini-1.5-pro"
         ]
         
         last_error = None
@@ -270,7 +269,7 @@ class AIEngine:
         """
         Gera uma imagem base usando o modelo FLUX.1 através do huggingface_hub.
         """
-        print("Gerando imagem com Flux (Hugging Face Client)...")
+        print("Gerando imagem com Stable Diffusion XL (Hugging Face Client)...")
         # text_to_image retorna um objeto PIL.Image
         image = self.hf_client.text_to_image(prompt)
         
