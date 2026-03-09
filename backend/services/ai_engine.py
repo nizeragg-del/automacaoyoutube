@@ -23,7 +23,7 @@ class AIEngine:
         # Configuração Google AI Studio (Novo SDK google-genai)
         self.client = genai.Client(
             api_key=self.gemini_key,
-            http_options={'api_version': 'v1'}
+            http_options={'api_version': 'v1beta'}
         )
         
         # Configuração Hugging Face Hub (Sempre vertical 9:16 para Shorts)
@@ -77,7 +77,6 @@ class AIEngine:
         models_to_try = [
             "gemini-2.0-flash",
             "gemini-1.5-flash",
-            "gemini-1.5-flash-8b",
             "gemini-1.5-pro"
         ]
         
@@ -232,8 +231,7 @@ class AIEngine:
         # Lista de modelos para tentar (baseado no diagnóstico anterior)
         models_to_try = [
             "gemini-2.0-flash",
-            "gemini-1.5-flash",
-            "gemini-1.5-flash-8b"
+            "gemini-1.5-flash"
         ]
         
         last_error = None
