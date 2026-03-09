@@ -44,12 +44,12 @@ class AIEngine:
             if system_instruction:
                 full_prompt = f"INSTRUÇÕES DO SISTEMA:\n{system_instruction}\n\nSOLICITAÇÃO DO USUÁRIO:\n{prompt}"
             
-            # Note: Não passamos system_instruction aqui para evitar o bug 400 da Google
+            # v1 (ESTÁVEL): NÃO suporta responseMimeType no config se for usado via v1 em alguns casos/contas
+            # Removemos para garantir compatibilidade máxima
             config = types.GenerateContentConfig(
                 http_options={'api_version': 'v1'}
             )
-            if response_mime_type:
-                config.response_mime_type = response_mime_type
+            # NÃO adicionamos response_mime_type aqui para evitar o erro 400
 
             response = self.client.models.generate_content(
                 model=model_id,
@@ -59,22 +59,35 @@ class AIEngine:
             return response
         except Exception as e:
             error_msg = str(e)
-            if "404" in error_msg or "400" in error_msg:
-                print(f"v1 falhou ({error_msg[:50]}...). Tentando v1beta...")
-                # Fallback para v1beta com o método padrão do SDK
-                config = types.GenerateContentConfig(
+            # Se v1 falhar, tentamos v1beta (que suporta System Instruction e MimeType nativos)
+            print(f"v1 falhou ({error_msg[:50]}...). Tentando v1beta nativo...")
+            try:
+                config_beta = types.GenerateContentConfig(
                     http_options={'api_version': 'v1beta'},
                     system_instruction=system_instruction
                 )
                 if response_mime_type:
-                    config.response_mime_type = response_mime_type
+                    config_beta.response_mime_type = response_mime_type
                     
                 return self.client.models.generate_content(
                     model=model_id,
                     contents=prompt,
-                    config=config
+                    config=config_beta
                 )
-            raise e
+            except Exception as e2:
+                # Se ambos falharem, levantamos o erro original
+                raise e
+
+    def _clean_json_response(self, text: str) -> dict:
+        """
+        Limpa respostas que podem vir com blocos de código markdown (```json ... ```).
+        """
+        cleaned = text.strip()
+        if cleaned.startswith("```json"):
+            cleaned = cleaned.split("```json")[1]
+        if "```" in cleaned:
+            cleaned = cleaned.split("```")[0]
+        return json.loads(cleaned.strip())
 
     def generate_story_script(self, user_input: str) -> dict:
         """
@@ -117,11 +130,13 @@ class AIEngine:
         
         prompt = f"Historical story about: {user_input}. Ensure the script is under 1000 characters and COMPLETELY in Portuguese (PT-BR)."
         
-        # Modelos estáveis e experimentais
+        # Modelos estáveis e experimentais (Lista expandida para bypass de quota/404)
         models_to_try = [
             "gemini-2.0-flash",
             "gemini-1.5-flash",
-            "gemini-1.5-pro"
+            "gemini-1.5-flash-8b",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash-latest"
         ]
         
         last_error = None
@@ -137,7 +152,7 @@ class AIEngine:
                         response_mime_type="application/json"
                     )
                     print(f"Sucesso com {model_id}!")
-                    return json.loads(response.text)
+                    return self._clean_json_response(response.text)
                 except Exception as e:
                     error_msg = str(e)
                     print(f"Erro no modelo {model_id}: {error_msg}")
@@ -274,6 +289,7 @@ class AIEngine:
         models_to_try = [
             "gemini-2.0-flash",
             "gemini-1.5-flash",
+            "gemini-1.5-flash-8b",
             "gemini-1.5-pro"
         ]
         
@@ -287,7 +303,7 @@ class AIEngine:
                     system_instruction=system_instruction,
                     response_mime_type="application/json"
                 )
-                result = json.loads(response.text)
+                result = self._clean_json_response(response.text)
                 print(f"Sucesso com o modelo {model_id}!")
                 return result.get("prompt", "")
             except Exception as e:
